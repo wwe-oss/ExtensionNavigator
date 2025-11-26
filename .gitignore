@@ -1,0 +1,13 @@
+# Node / TypeScript / VS Code / build artifacts
+node_modules/
+out/
+dist/
+coverage/
+*.vsix
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+# VS Code workspace
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
