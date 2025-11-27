@@ -98,10 +98,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
       if (!candidates.length) { vscode.window.showWarningMessage('No log candidates found.'); return; }
       const pick = await vscode.window.showQuickPick(candidates.map(c => ({ label: c.label, description: c.path })), { placeHolder: 'Select an Extension Host log file' });
       if (!pick) return;
-      // Persist chosen log
       await ctx.globalState.update('extNavigator.customLogPath', pick.description);
       vscode.window.showInformationMessage('Using log: ' + pick.description);
-      // Restart tailer
       if (stopTailer) stopTailer();
       stopTailer = await startLogTailer(db, ctx, maxRecentErrors, () => { tree.refreshThrottled(); persist(); });
     })
@@ -128,15 +126,11 @@ export function deactivate() { if (stopSampler) stopSampler(); if (stopTailer) s
 
 async function discoverLogCandidates(): Promise<Array<{ label: string; path: string }>> {
   const out: Array<{ label: string; path: string }> = [];
-  // Try env.logUri
   const anyEnv = vscode.env as any;
   const roots: vscode.Uri[] = [];
   if (anyEnv?.logUri instanceof vscode.Uri) roots.push(anyEnv.logUri);
-  // Try env.logPath
-  if ((vscode.env as any).logPath) {
-    roots.push(vscode.Uri.file((vscode.env as any).logPath as string));
-  }
-  // Fallback common locations
+  if ((vscode.env as any).logPath) roots.push(vscode.Uri.file((vscode.env as any).logPath as string));
+
   const product = ((): string => {
     const n = vscode.env.appName || 'Visual Studio Code';
     if (/insiders/i.test(n)) return 'Code - Insiders';
@@ -144,16 +138,15 @@ async function discoverLogCandidates(): Promise<Array<{ label: string; path: str
     if (/vscodium/i.test(n)) return 'VSCodium';
     return 'Code';
   })();
-  const homedir = require('os').homedir();
+  const home = require('os').homedir();
   const path = require('path');
-  const platform = process.platform;
-  if (platform === 'win32') {
-    const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || homedir, 'AppData', 'Roaming');
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || home, 'AppData', 'Roaming');
     roots.push(vscode.Uri.file(path.join(appData, product, 'logs')));
-  } else if (platform === 'darwin') {
-    roots.push(vscode.Uri.file(path.join(homedir, 'Library', 'Application Support', product, 'logs')));
+  } else if (process.platform === 'darwin') {
+    roots.push(vscode.Uri.file(path.join(home, 'Library', 'Application Support', product, 'logs')));
   } else {
-    const xdg = process.env.XDG_CONFIG_HOME || path.join(homedir, '.config');
+    const xdg = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
     roots.push(vscode.Uri.file(path.join(xdg, product, 'logs')));
   }
 
@@ -170,7 +163,7 @@ async function discoverLogCandidates(): Promise<Array<{ label: string; path: str
             const full = vscode.Uri.joinPath(folder, name).fsPath;
             if (!seen.has(full)) {
               seen.add(full);
-              out.append({ "label": name, "path": full })
+              out.push({ label: name, path: full }); // <-- fixed
             }
           }
         }
