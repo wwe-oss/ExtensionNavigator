@@ -35,10 +35,9 @@ export class DetailsPanel {
     const rec = db.byId.get(extId);
     if (!rec) return;
 
-    const dayRows = Object.entries(rec.usage.byDay)
-      .sort((a,b)=>a[0].localeCompare(b[0]))
-      .map(([day, v])=>({ day, ...(v as any) }));
-
+    const dayRows = Object.entries(rec.usage.byDay).sort((a,b)=>a[0].localeCompare(b[0])).map(([day, v])=>({ day, ...(v as any) }));
+    // top 5 languages
+    const langs = Object.entries(rec.usage.signals.languages || {}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id,count}));
     panel.webview.postMessage({
       type: 'state',
       data: {
@@ -49,7 +48,8 @@ export class DetailsPanel {
         totals: rec.usage.totals,
         byDay: dayRows,
         note: rec.notes || '',
-        errors: rec.usage.errors
+        errors: rec.usage.errors,
+        signals: { languages: langs, debugSessions: rec.usage.signals.debugSessions || 0 }
       }
     });
   }
@@ -83,6 +83,8 @@ export class DetailsPanel {
     .muted { color: #666; }
     .errors { max-height: 200px; overflow:auto; background:#faf5f5; border:1px solid #f0d0d0; padding:8px; }
     .errline { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; white-space: pre-wrap; border-bottom: 1px dashed #eee; padding:4px 0; }
+    .kv { display:flex; gap:8px; flex-wrap:wrap; }
+    .pill { border:1px solid #ddd; border-radius:999px; padding:2px 8px; font-size:12px; }
   </style>
 </head>
 <body>
@@ -103,6 +105,14 @@ export class DetailsPanel {
       </div>
       <textarea id="note" placeholder="Why I like/dislike this, conflicts, extra requirements, links..."></textarea>
       <div class="muted">Notes are stored locally in your profile and can be exported as JSON.</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:12px;">
+    <div class="card" style="flex:1;min-width:320px;">
+      <strong>Signals</strong>
+      <div class="kv" id="langs"></div>
+      <div class="muted">Debug sessions: <span id="dbg">0</span></div>
     </div>
   </div>
 
@@ -127,16 +137,25 @@ export class DetailsPanel {
       const msg = event.data;
       if (msg.type === 'state') {
         const d = msg.data;
-        document.getElementById('title').textContent = d.displayName + ' — ' + d.id;
-        document.getElementById('version').textContent = d.version;
-        document.getElementById('sentiment').textContent = d.sentiment ?? '—';
-        document.getElementById('mins').textContent = Math.round(d.totals.activeMinutes);
-        document.getElementById('acts').textContent = d.totals.activations;
-        document.getElementById('days').textContent = d.totals.daysActive;
-        document.getElementById('errcount').textContent = d.errors.count;
-        document.getElementById('note').value = d.note || '';
+        $('title').textContent = d.displayName + ' — ' + d.id;
+        $('version').textContent = d.version;
+        $('sentiment').textContent = d.sentiment ?? '—';
+        $('mins').textContent = Math.round(d.totals.activeMinutes);
+        $('acts').textContent = d.totals.activations;
+        $('days').textContent = d.totals.daysActive;
+        $('errcount').textContent = d.errors.count;
+        $('note').value = d.note || '';
 
-        const tbody = document.getElementById('tbody');
+        const lwrap = $('langs'); lwrap.innerHTML = '';
+        for (const l of d.signals.languages || []) {
+          const span = document.createElement('span');
+          span.className = 'pill';
+          span.textContent = `${l.id} • ${l.count}`;
+          lwrap.appendChild(span);
+        }
+        $('dbg').textContent = d.signals.debugSessions || 0;
+
+        const tbody = $('tbody');
         tbody.innerHTML = '';
         for (const row of d.byDay) {
           const tr = document.createElement('tr');
@@ -144,7 +163,7 @@ export class DetailsPanel {
           tbody.appendChild(tr);
         }
 
-        const container = document.getElementById('errors');
+        const container = $('errors');
         container.innerHTML = '';
         for (const e of d.errors.recent || []) {
           const div = document.createElement('div');
@@ -156,8 +175,8 @@ export class DetailsPanel {
       }
     });
 
-    document.getElementById('save').addEventListener('click', () => {
-      vscode.postMessage({ type: 'saveNote', note: document.getElementById('note').value });
+    $('save').addEventListener('click', () => {
+      vscode.postMessage({ type: 'saveNote', note: $('note').value });
     });
   </script>
 </body>
