@@ -175,12 +175,14 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/vscode": "^1.106.0",
-    "tslib": "^2.6.2",
-    "typescript": "^5.6.3",
+    "@types/node": "^22.19.1",
+    "@types/vscode": "^1.106.1",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
     "@vscode/test-electron": "^2.3.9",
-    "@vscode/vsce": "^3.7.1"
-  },
-  "dependencies": {}
+    "@vscode/vsce": "^3.7.1",
+    "eslint": "^9.39.1",
+    "tslib": "^2.6.2",
+    "typescript": "^5.9.3"
+  }
 }
