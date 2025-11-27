@@ -1,4 +1,0 @@
-# Merge into tsconfig.json (adds tests to compilation)
-{
-  "include": ["src", "test"]
-}
