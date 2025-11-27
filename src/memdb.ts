@@ -44,6 +44,7 @@ export class MemDB {
   }
 
   setSentiment(id: string, s: Sentiment) { const r = this.byId.get(id); if (r) r.sentiment = s; }
+  setNote(id: string, note: string) { const r = this.byId.get(id); if (r) r.notes = note; }
 
   bumpLanguage(id: string) {
     // naive heuristic: bump counter on all records for the language touch

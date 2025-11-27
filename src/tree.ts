@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { MemDB, ExtRecord } from './memdb';
+import { DetailsPanel } from './webview/detailsPanel';
 
 export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord> {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
@@ -8,7 +9,7 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord>
   private refreshTimeout?: NodeJS.Timeout;
   refreshThrottled() { clearTimeout(this.refreshTimeout); this.refreshTimeout = setTimeout(()=>this.refresh(), 500); }
 
-  constructor(private db: MemDB, private ctx: vscode.ExtensionContext) {}
+  constructor(public db: MemDB, public ctx: vscode.ExtensionContext) {}
 
   getTreeItem(el: ExtRecord): vscode.TreeItem {
     const item = new vscode.TreeItem(el.displayName || el.id, vscode.TreeItemCollapsibleState.None);
@@ -30,6 +31,8 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord>
   }
 
   openDetails(extId?: string) {
-    vscode.window.showInformationMessage(`Details would open for ${extId ?? 'selected item'} (webview TODO).`);
+    const id = extId ?? [...this.db.byId.keys()][0];
+    if (!id) { vscode.window.showInformationMessage('No extension selected.'); return; }
+    DetailsPanel.show(this.db, this.ctx, id);
   }
 }
