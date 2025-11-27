@@ -17,6 +17,27 @@ function toExtId(arg: unknown): string | undefined {
   return undefined;
 }
 
+function isBuiltin(id: string): boolean {
+  // VS Code doesn't expose a stable "isBuiltin" boolean; ids with publisher 'vscode' are built-ins.
+  return /^vscode\./i.test(id);
+}
+
+async function disableExtension(id: string) {
+  const cmds = await vscode.commands.getCommands(true);
+  if (cmds.includes('workbench.extensions.disableExtension')) {
+    await vscode.commands.executeCommand('workbench.extensions.disableExtension', id);
+    return;
+  }
+  if (cmds.includes('workbench.extensions.action.disableExtension')) {
+    await vscode.commands.executeCommand('workbench.extensions.action.disableExtension', id);
+    return;
+  }
+  // Fallback: open Extensions view focused on this id and instruct the user
+  await vscode.commands.executeCommand('workbench.view.extensions');
+  await vscode.commands.executeCommand('workbench.extensions.search', `@installed ${id}`);
+  vscode.window.showWarningMessage(`This VS Code build does not expose a disable command to extensions. Opened ${id} in Extensions — click "Disable" in the header.`);
+}
+
 async function pickExtensionId(): Promise<string | undefined> {
   const items = Array.from(db.byId.values()).map(r => ({
     label: r.displayName || r.id, description: r.id, extId: r.id
@@ -61,27 +82,35 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('extNavigator.uninstallAsLiked', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
+      if (isBuiltin(id)) {
+        vscode.window.showWarningMessage(`'${id}' is a built-in extension and cannot be uninstalled.`);
+        return;
+      }
       db.setSentiment(id, 'like');
       await vscode.commands.executeCommand('workbench.extensions.uninstallExtension', id);
       tree.refresh(); persist();
     }),
     vscode.commands.registerCommand('extNavigator.uninstallAsDisliked', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
+      if (isBuiltin(id)) {
+        vscode.window.showWarningMessage(`'${id}' is a built-in extension and cannot be uninstalled.`);
+        return;
+      }
       db.setSentiment(id, 'dislike');
       await vscode.commands.executeCommand('workbench.extensions.uninstallExtension', id);
       tree.refresh(); persist();
     }),
     vscode.commands.registerCommand('extNavigator.disableAsLiked', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      db.setSentiment(id, 'like');
-      await vscode.commands.executeCommand('workbench.extensions.disableExtension', id);
-      tree.refresh(); persist();
+      db.setSentiment(id, 'like'); persist();
+      await disableExtension(id);
+      tree.refresh();
     }),
     vscode.commands.registerCommand('extNavigator.disableAsDisliked', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      db.setSentiment(id, 'dislike');
-      await vscode.commands.executeCommand('workbench.extensions.disableExtension', id);
-      tree.refresh(); persist();
+      db.setSentiment(id, 'dislike'); persist();
+      await disableExtension(id);
+      tree.refresh();
     }),
 
     vscode.commands.registerCommand('extNavigator.addToWorkspaceRecommendations', async (arg?: any) => {
@@ -95,11 +124,22 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
     vscode.commands.registerCommand('extNavigator.discoverLogs', async () => {
       const candidates = await discoverLogCandidates();
-      if (!candidates.length) { vscode.window.showWarningMessage('No log candidates found.'); return; }
-      const pick = await vscode.window.showQuickPick(candidates.map(c => ({ label: c.label, description: c.path })), { placeHolder: 'Select an Extension Host log file' });
-      if (!pick) return;
-      await ctx.globalState.update('extNavigator.customLogPath', pick.description);
-      vscode.window.showInformationMessage('Using log: ' + pick.description);
+      if (!candidates.length) {
+        const sel = await vscode.window.showOpenDialog({
+          canSelectFiles: true, canSelectFolders: false, canSelectMany: false,
+          filters: { 'Log files': ['log', 'txt'], 'All files': ['*'] },
+          title: 'Pick your Extension Host log (exthost*.log)'
+        });
+        if (!sel || !sel.length) { vscode.window.showWarningMessage('No log candidates found.'); return; }
+        await ctx.globalState.update('extNavigator.customLogPath', sel[0].fsPath);
+        vscode.window.showInformationMessage('Using log: ' + sel[0].fsPath);
+      } else {
+        const pick = await vscode.window.showQuickPick(candidates.map(c => ({ label: c.label, description: c.path })), { placeHolder: 'Select an Extension Host log file' });
+        if (!pick) return;
+        await ctx.globalState.update('extNavigator.customLogPath', pick.description);
+        vscode.window.showInformationMessage('Using log: ' + pick.description);
+      }
+      // Restart tailer
       if (stopTailer) stopTailer();
       stopTailer = await startLogTailer(db, ctx, maxRecentErrors, () => { tree.refreshThrottled(); persist(); });
     })
@@ -163,7 +203,7 @@ async function discoverLogCandidates(): Promise<Array<{ label: string; path: str
             const full = vscode.Uri.joinPath(folder, name).fsPath;
             if (!seen.has(full)) {
               seen.add(full);
-              out.push({ label: name, path: full }); // <-- fixed
+              out.push({ label: name, path: full });
             }
           }
         }
