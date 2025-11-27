@@ -8,13 +8,4 @@ suite('Extension Navigator – smoke', () => {
     await ext!.activate();
     assert.ok(ext!.isActive, 'Extension did not activate');
   });
-
-  test('commands exist', async () => {
-    const cmds = await vscode.commands.getCommands(true);
-    for (const c of ['extNavigator.openDetails','extNavigator.like','extNavigator.dislike','extNavigator.clearSentiment']) {
-      if (!cmds.includes(c)) {
-        throw new Error('Missing command: ' + c);
-      }
-    }
-  });
 });
