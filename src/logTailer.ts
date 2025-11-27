@@ -1,27 +1,30 @@
 import * as vscode from 'vscode';
+import * as os from 'os';
+import * as path from 'path';
 
 /**
- * Resilient Extension Host log tailer.
- * - Works with both env.logUri (new) and env.logPath (old string path).
- * - Avoids type errors by feature-detecting logUri.
- * - Best-effort attribution of error lines to extension id tokens like publisher.name.
+ * Path-corrected Extension Host log tailer.
+ * If env.logUri is unavailable, we derive the logs directory based on OS and appName:
+ *  - Windows: %APPDATA%/<ProductFolder>/logs
+ *  - macOS:   ~/Library/Application Support/<ProductFolder>/logs
+ *  - Linux:   $XDG_CONFIG_HOME/<ProductFolder>/logs  (or ~/.config/<ProductFolder>/logs)
  */
 export async function startLogTailer(
   db: { addError: (id: string, msg: string, maxRecent: number) => void },
-  ctx: vscode.ExtensionContext,
+  _ctx: vscode.ExtensionContext,
   maxRecent: number,
   onUpdate: () => void
 ): Promise<() => void> {
   try {
     const root = resolveLogsRoot();
     if (!root) {
-      console.warn('[ext-navigator] No logs root found (env.logUri/env.logPath unavailable).');
+      console.warn('[ext-navigator] No logs root found.');
       return () => {};
     }
 
     const logUri = await findExtHostLog(root);
     if (!logUri) {
-      console.warn('[ext-navigator] No Extension Host log file found.');
+      console.warn('[ext-navigator] No Extension Host log file found under', root.fsPath);
       return () => {};
     }
 
@@ -44,9 +47,7 @@ export async function startLogTailer(
       }
     };
 
-    // Initial read
     await readChunk();
-    // Poll every 5s (FS watcher isn't reliable for append-only logs)
     const handle = setInterval(readChunk, 5000);
     return () => clearInterval(handle);
   } catch (e) {
@@ -56,41 +57,62 @@ export async function startLogTailer(
 }
 
 function resolveLogsRoot(): vscode.Uri | undefined {
-  // Newer API: env.logUri (Uri). Older: env.logPath (string).
   const anyEnv = vscode.env as any;
-  if (anyEnv && anyEnv.logUri && anyEnv.logUri instanceof vscode.Uri) {
+  if (anyEnv?.logUri && anyEnv.logUri instanceof vscode.Uri) {
     return anyEnv.logUri as vscode.Uri;
   }
-  if ((vscode.env as any).logPath) {
-    const p = (vscode.env as any).logPath as string;
-    try { return vscode.Uri.file(p); } catch { /* ignore */ }
+  // Fallback: derive path
+  const productFolder = getProductFolder();
+  const platform = process.platform;
+  try {
+    if (platform === 'win32') {
+      const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming');
+      return vscode.Uri.file(path.join(appData, productFolder, 'logs'));
+    } else if (platform === 'darwin') {
+      return vscode.Uri.file(path.join(os.homedir(), 'Library', 'Application Support', productFolder, 'logs'));
+    } else {
+      const xdg = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+      return vscode.Uri.file(path.join(xdg, productFolder, 'logs'));
+    }
+  } catch {
+    return undefined;
   }
-  return undefined;
+}
+
+function getProductFolder(): string {
+  const name = vscode.env.appName || 'Visual Studio Code';
+  if (/insiders/i.test(name)) return 'Code - Insiders';
+  if (/oss/i.test(name)) return 'code-oss';
+  if (/vscodium/i.test(name)) return 'VSCodium';
+  return 'Code';
 }
 
 async function findExtHostLog(root: vscode.Uri): Promise<vscode.Uri | undefined> {
-  // The structure is typically <logsRoot>/<sessionId>/exthost1.log (names can vary)
-  // 1) Find latest session directory (max by name)
-  const entries = await vscode.workspace.fs.readDirectory(root);
+  // Find the newest session folder and then an *exthost* file
+  const entries = await safeReadDir(root);
+  if (!entries) return undefined;
   const dirs = entries.filter(([_, t]) => t === vscode.FileType.Directory).map(([n, _]) => n).sort();
   const latestName = dirs.pop();
   if (!latestName) return undefined;
   const latest = vscode.Uri.joinPath(root, latestName);
 
-  // 2) Inside latest, look for a file containing 'exthost' (first match)
-  const files = await vscode.workspace.fs.readDirectory(latest);
-  const candidate = files.find(([name, t]) => t === vscode.FileType.File && /exthost/i.test(name));
-  if (candidate) return vscode.Uri.joinPath(latest, candidate[0]);
+  const files = await safeReadDir(latest) || [];
+  const file = files.find(([n, t]) => t === vscode.FileType.File && /exthost/i.test(n));
+  if (file) return vscode.Uri.joinPath(latest, file[0]);
 
-  // Some builds nest logs differently; fallback: scan subdirs for exthost files
-  for (const [name, type] of files) {
-    if (type !== vscode.FileType.Directory) continue;
-    const sub = vscode.Uri.joinPath(latest, name);
-    const subFiles = await vscode.workspace.fs.readDirectory(sub);
-    const hit = subFiles.find(([n, t]) => t === vscode.FileType.File && /exthost/i.test(n));
+  // One level deeper (some builds nest)
+  for (const [n, t] of files) {
+    if (t !== vscode.FileType.Directory) continue;
+    const sub = vscode.Uri.joinPath(latest, n);
+    const subFiles = await safeReadDir(sub) || [];
+    const hit = subFiles.find(([nn, tt]) => tt === vscode.FileType.File && /exthost/i.test(nn));
     if (hit) return vscode.Uri.joinPath(sub, hit[0]);
   }
   return undefined;
+}
+
+async function safeReadDir(uri: vscode.Uri) {
+  try { return await vscode.workspace.fs.readDirectory(uri); } catch { return undefined; }
 }
 
 function parseChunk(chunk: string, db: { addError: (id: string, msg: string, maxRecent: number) => void }, maxRecent: number) {
@@ -98,7 +120,6 @@ function parseChunk(chunk: string, db: { addError: (id: string, msg: string, max
   for (const line of lines) {
     if (!line) continue;
     if (!/(ERR|Error|UnhandledPromiseRejection|exception)/i.test(line)) continue;
-    // Extract something that looks like publisher.name (extension id)
     const m = line.match(/([a-z0-9][\w.-]*\.[a-z0-9][\w.-]*)/i);
     const extId = m ? m[1].toLowerCase() : 'unknown';
     db.addError(extId, line.slice(0, 500), maxRecent);
