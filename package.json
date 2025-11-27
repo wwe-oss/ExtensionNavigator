@@ -3,7 +3,7 @@
   "publisher": "wayne",
   "displayName": "Extension Navigator & Notes",
   "description": "Navigate VS Code extensions with profiles, notes/tags, daily usage (60s sampling), simple error sightings, and workspace recommendations.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.106.0"
   },

@@ -3,8 +3,10 @@ import { MemDB } from './memdb';
 import { startSampler } from './sampler';
 import { NavigatorTreeProvider } from './tree';
 import { addToWorkspaceRecommendations, removeFromWorkspaceRecommendations } from './recommendations';
+import { startLogTailer } from './logTailer';
 
 let stopSampler: (() => void) | undefined;
+let stopTailer: (() => void) | undefined;
 const db = new MemDB();
 
 async function pickExtensionId(db: MemDB): Promise<string | undefined> {
@@ -18,7 +20,10 @@ async function pickExtensionId(db: MemDB): Promise<string | undefined> {
 }
 
 export async function activate(ctx: vscode.ExtensionContext) {
-  const samplingMs = vscode.workspace.getConfiguration('extensionNavigator').get('samplingPeriodMs', 60000);
+  const cfg = vscode.workspace.getConfiguration('extensionNavigator');
+  const samplingMs = cfg.get('samplingPeriodMs', 60000);
+  const errorParsing = cfg.get<'simple'|'off'>('errorParsing', 'simple');
+  const maxRecentErrors = cfg.get<number>('maxRecentErrors', 20);
 
   const snapshot = ctx.globalState.get<any>('extNavigator.snapshot');
   if (snapshot) db.loadSnapshot(snapshot);
@@ -44,6 +49,10 @@ export async function activate(ctx: vscode.ExtensionContext) {
 
   stopSampler = startSampler(db, tree, samplingMs);
 
+  if (errorParsing === 'simple') {
+    stopTailer = await startLogTailer(db, ctx, maxRecentErrors, () => { tree.refreshThrottled(); persist(); });
+  }
+
   const saveInterval = setInterval(persist, 60000);
   ctx.subscriptions.push(new vscode.Disposable(() => clearInterval(saveInterval)));
 
@@ -57,4 +66,4 @@ export async function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(vscode.debug.onDidStartDebugSession(() => db.bumpDebug()));
 }
 
-export function deactivate() { if (stopSampler) stopSampler(); }
+export function deactivate() { if (stopSampler) stopSampler(); if (stopTailer) stopTailer(); }

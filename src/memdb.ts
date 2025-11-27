@@ -46,6 +46,15 @@ export class MemDB {
   setSentiment(id: string, s: Sentiment) { const r = this.byId.get(id); if (r) r.sentiment = s; }
   setNote(id: string, note: string) { const r = this.byId.get(id); if (r) r.notes = note; }
 
+  addError(id: string, msg: string, maxRecent: number) {
+    const r = this.byId.get(id) || { id, version: '0.0.0', firstSeen: Date.now(), lastSeen: Date.now(), status: 'installed', usage: { totals:{activeMinutes:0,activations:0,daysActive:0}, byDay:{}, signals:{languages:{},debugSessions:0}, errors:{count:0,recent:[]} } } as ExtRecord;
+    this.byId.set(id, r);
+    r.usage.errors.count++;
+    r.usage.errors.recent.push({ ts: Date.now(), msg });
+    if (r.usage.errors.recent.length > maxRecent) r.usage.errors.recent.splice(0, r.usage.errors.recent.length - maxRecent);
+    this.hasErrors.add(id);
+  }
+
   bumpLanguage(id: string) {
     for (const r of this.byId.values()) r.usage.signals.languages[id] = (r.usage.signals.languages[id]||0)+1;
   }

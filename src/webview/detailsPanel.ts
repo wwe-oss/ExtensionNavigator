@@ -45,7 +45,8 @@ export class DetailsPanel {
         sentiment: rec.sentiment || null,
         totals: rec.usage.totals,
         byDay: dayRows,
-        note: rec.notes || ''
+        note: rec.notes || '',
+        errors: rec.usage.errors
       }
     });
   }
@@ -77,6 +78,8 @@ export class DetailsPanel {
     textarea { width: 100%; min-height: 100px; }
     button { padding: 6px 10px; }
     .muted { color: #666; }
+    .errors { max-height: 200px; overflow:auto; background:#faf5f5; border:1px solid #f0d0d0; padding:8px; }
+    .errline { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; white-space: pre-wrap; border-bottom: 1px dashed #eee; padding:4px 0; }
   </style>
 </head>
 <body>
@@ -88,6 +91,7 @@ export class DetailsPanel {
       <div><strong>Total Active Minutes</strong>: <span id="mins"></span></div>
       <div><strong>Activations</strong>: <span id="acts"></span></div>
       <div><strong>Days Active</strong>: <span id="days"></span></div>
+      <div><strong>Errors (count)</strong>: <span id="errcount"></span></div>
     </div>
     <div class="card" style="flex:1;">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -107,6 +111,11 @@ export class DetailsPanel {
     </table>
   </div>
 
+  <div class="card" style="margin-top:12px;">
+    <strong>Recent Errors</strong>
+    <div id="errors" class="errors"></div>
+  </div>
+
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const $ = (id) => document.getElementById(id);
@@ -121,6 +130,7 @@ export class DetailsPanel {
         $('mins').textContent = Math.round(d.totals.activeMinutes);
         $('acts').textContent = d.totals.activations;
         $('days').textContent = d.totals.daysActive;
+        $('errcount').textContent = d.errors.count;
         $('note').value = d.note || '';
 
         const tbody = $('tbody');
@@ -130,6 +140,16 @@ export class DetailsPanel {
           tr.innerHTML = '<td>'+row.day+'</td><td>'+Math.round(row.activeMinutes)+'</td><td>'+row.activations+'</td>';
           tbody.appendChild(tr);
         }
+
+        const container = $('errors');
+        container.innerHTML = '';
+        for (const e of d.errors.recent || []) {
+          const div = document.createElement('div');
+          const t = new Date(e.ts).toLocaleTimeString();
+          div.className = 'errline';
+          div.textContent = '['+t+'] '+e.msg;
+          container.appendChild(div);
+        }
       }
     });
 
@@ -138,6 +158,6 @@ export class DetailsPanel {
     });
   </script>
 </body>
-</html>`;
+</html>";
   }
 }
