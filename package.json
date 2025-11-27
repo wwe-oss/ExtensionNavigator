@@ -1,5 +1,22 @@
 {
+  "name": "extension-navigator",
   "publisher": "wayne",
+  "displayName": "Extension Navigator & Notes",
+  "description": "Track installed/removed extensions, notes/tags/issues, daily usage (60s sampling), simple error sightings, and workspace recommendations.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "icon": "media/view-icon.svg",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:extNavigator.view",
+    "onCommand:extNavigator.openDetails"
+  ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -17,6 +34,151 @@
           "name": "Navigator"
         }
       ]
+    },
+    "commands": [
+      {
+        "command": "extNavigator.openDetails",
+        "title": "Extension Navigator: Open Details"
+      },
+      {
+        "command": "extNavigator.like",
+        "title": "Extension Navigator: Like"
+      },
+      {
+        "command": "extNavigator.dislike",
+        "title": "Extension Navigator: Dislike"
+      },
+      {
+        "command": "extNavigator.clearSentiment",
+        "title": "Extension Navigator: Clear Sentiment"
+      },
+      {
+        "command": "extNavigator.uninstallAsLiked",
+        "title": "Extension Navigator: Uninstall as Liked"
+      },
+      {
+        "command": "extNavigator.uninstallAsDisliked",
+        "title": "Extension Navigator: Uninstall as Disliked"
+      },
+      {
+        "command": "extNavigator.disableAsLiked",
+        "title": "Extension Navigator: Disable as Liked"
+      },
+      {
+        "command": "extNavigator.disableAsDisliked",
+        "title": "Extension Navigator: Disable as Disliked"
+      },
+      {
+        "command": "extNavigator.addToWorkspaceRecommendations",
+        "title": "Extension Navigator: Add to Workspace Recommendations"
+      },
+      {
+        "command": "extNavigator.removeFromWorkspaceRecommendations",
+        "title": "Extension Navigator: Remove from Workspace Recommendations"
+      },
+      {
+        "command": "extNavigator.exportCatalog",
+        "title": "Extension Navigator: Export Catalog"
+      },
+      {
+        "command": "extNavigator.importCatalog",
+        "title": "Extension Navigator: Import Catalog"
+      }
+    ],
+    "menus": {
+      "view/item/context": [
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.openDetails",
+          "group": "navigation@1"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.like",
+          "group": "inline@1"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.dislike",
+          "group": "inline@2"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.clearSentiment",
+          "group": "inline@3"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.uninstallAsLiked",
+          "group": "2_modification@1"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.uninstallAsDisliked",
+          "group": "2_modification@2"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.disableAsLiked",
+          "group": "2_modification@3"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.disableAsDisliked",
+          "group": "2_modification@4"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.addToWorkspaceRecommendations",
+          "group": "3_workspace@1"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == extension",
+          "command": "extNavigator.removeFromWorkspaceRecommendations",
+          "group": "3_workspace@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Extension Navigator",
+      "properties": {
+        "extensionNavigator.samplingPeriodMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "description": "Usage sampling period in milliseconds (default 60s)."
+        },
+        "extensionNavigator.errorParsing": {
+          "type": "string",
+          "enum": [
+            "simple",
+            "off"
+          ],
+          "default": "simple",
+          "description": "Enable simple error parsing from Extension Host logs."
+        },
+        "extensionNavigator.maxRecentErrors": {
+          "type": "number",
+          "default": 20,
+          "description": "Max recent error messages kept per extension."
+        }
+      }
     }
-  }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.106.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.6.3",
+    "@vscode/test-electron": "^2.3.9",
+    "@vscode/vsce": "^3.7.1"
+  },
+  "dependencies": {}
 }
