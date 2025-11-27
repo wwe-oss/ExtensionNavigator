@@ -10,7 +10,7 @@
   "categories": [
     "Other"
   ],
-  "icon": "media/view-icon.svg",
+  "icon": "media/view-icon.png",
   "main": "./out/extension.js",
   "activationEvents": [
     "onStartupFinished",
