@@ -83,23 +83,34 @@ export class MemDB {
     for (const r of this.byId.values()) r.usage.signals.debugSessions++;
   }
 
-  addError(id: string, msg: string, maxRecent: number) {
-    const r = this.byId.get(id); if (!r) return;
-    r.usage.errors.count++;
-    r.usage.errors.recent.unshift({ ts: Date.now(), msg });
-    if (r.usage.errors.recent.length > maxRecent) r.usage.errors.recent.length = maxRecent;
+  bumpActivationAll() {
+    const key = new Date().toISOString().slice(0,10);
+    for (const r of this.byId.values()) {
+      const day = r.usage.byDay[key] || (r.usage.byDay[key] = { activeMinutes: 0, activations: 0 });
+      day.activations += 1;
+      r.usage.totals.activations += 1;
+    }
   }
 
   tickActiveMinute() {
-    // naive: add 1 minute to all installed extensions
     const key = new Date().toISOString().slice(0,10);
     for (const r of this.byId.values()) {
       const day = r.usage.byDay[key] || (r.usage.byDay[key] = { activeMinutes: 0, activations: 0 });
       day.activeMinutes += 1;
       r.usage.totals.activeMinutes += 1;
-      // daysActive heuristic
-      if (!r.usage.byDay[key] || day.activations === 0) r.usage.totals.daysActive = new Set(Object.keys(r.usage.byDay)).size;
     }
+    // recompute daysActive = number of days with any activity
+    for (const r of this.byId.values()) {
+      const days = Object.values(r.usage.byDay).filter(d => d.activeMinutes > 0 || d.activations > 0).length;
+      r.usage.totals.daysActive = days;
+    }
+  }
+
+  addError(id: string, msg: string, maxRecent: number) {
+    const r = this.byId.get(id); if (!r) return;
+    r.usage.errors.count++;
+    r.usage.errors.recent.unshift({ ts: Date.now(), msg });
+    if (r.usage.errors.recent.length > maxRecent) r.usage.errors.recent.length = maxRecent;
   }
 
   snapshot() {
@@ -110,7 +121,6 @@ export class MemDB {
     if (!obj || !Array.isArray(obj.items)) return;
     this.byId.clear();
     for (const it of obj.items) {
-      // trust the shape, but coerce missing fields
       const rec: ExtRecord = {
         id: it.id,
         displayName: it.displayName,
@@ -127,6 +137,9 @@ export class MemDB {
           signals: it.usage?.signals || { languages: {}, debugSessions: 0 }
         }
       };
+      // normalize daysActive on load
+      const days = Object.values(rec.usage.byDay).filter(d => d.activeMinutes > 0 || d.activations > 0).length;
+      rec.usage.totals.daysActive = days;
       this.byId.set(rec.id, rec);
     }
   }

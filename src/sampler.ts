@@ -2,25 +2,28 @@ import * as vscode from 'vscode';
 import { MemDB } from './memdb';
 import { NavigatorTreeProvider } from './tree';
 
-export function startSampler(db: MemDB, tree: NavigatorTreeProvider, periodMs: number) {
+export function startSampler(db: MemDB, tree: NavigatorTreeProvider, samplingMs: number) {
+  let disposed = false;
+
+  // Every period, add 1 minute across the board (coarse heuristic)
   const timer = setInterval(() => {
-    const now = Date.now();
-    const day = new Date().toISOString().slice(0,10);
-    for (const ext of vscode.extensions.all) {
-      const rec = db.ensureRecord(ext);
-      if (ext.isActive) {
-        rec.usage.totals.activeMinutes += periodMs/60000;
-        if (!rec._wasActive) { rec.usage.totals.activations++; }
-        rec._wasActive = true;
-        const slot = rec.usage.byDay[day] ?? (rec.usage.byDay[day] = { activeMinutes: 0, activations: 0 });
-        slot.activeMinutes += periodMs/60000;
-      } else {
-        rec._wasActive = false;
-      }
-      rec.lastSeen = now;
+    if (disposed) return;
+    db.tickActiveMinute();
+    if (typeof (tree as any).refreshThrottled === 'function') {
+      (tree as any).refreshThrottled();
+    } else {
+      tree.refresh();
     }
-    for (const r of db.byId.values()) r.usage.totals.daysActive = Object.values(r.usage.byDay).filter(x=>x.activeMinutes>0).length;
-    tree.refreshThrottled();
-  }, periodMs);
-  return () => clearInterval(timer);
+  }, Math.max(5000, samplingMs));
+
+  // Activation heuristic: when window gains focus, count an activation across the board
+  const focusListener = vscode.window.onDidChangeWindowState((e) => {
+    if (e.focused) db.bumpActivationAll();
+  });
+
+  return () => {
+    disposed = true;
+    clearInterval(timer);
+    focusListener.dispose();
+  };
 }
