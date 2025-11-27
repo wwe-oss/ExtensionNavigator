@@ -2,11 +2,8 @@ import * as vscode from 'vscode';
 import { MemDB, ExtRecord } from './memdb';
 import { startSampler } from './sampler';
 import { NavigatorTreeProvider } from './tree';
-import { addToWorkspaceRecommendations, removeFromWorkspaceRecommendations } from './recommendations';
-import { startLogTailer } from './logTailer';
 
 let stopSampler: (() => void) | undefined;
-let stopTailer: (() => void) | undefined;
 const db = new MemDB();
 let tree: NavigatorTreeProvider;
 
@@ -114,4 +111,4 @@ export async function activate(ctx: vscode.ExtensionContext) {
   ctx.subscriptions.push(vscode.debug.onDidStartDebugSession(() => db.bumpDebug()));
 }
 
-export function deactivate() { if (stopSampler) stopSampler(); if (stopTailer) stopTailer(); }
+export function deactivate() { if (stopSampler) stopSampler(); }

@@ -3,7 +3,7 @@
   "publisher": "wayne",
   "displayName": "Extension Navigator & Notes",
   "description": "Navigate VS Code extensions with profiles, notes/tags, daily usage (60s sampling), error sightings, and workspace recommendations.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "engines": {
     "vscode": "^1.106.0"
   },
@@ -15,7 +15,17 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:extNavigator.view",
-    "onCommand:extNavigator.openDetails"
+    "onCommand:extNavigator.setFilter",
+    "onCommand:extNavigator.clearFilter",
+    "onCommand:extNavigator.like",
+    "onCommand:extNavigator.dislike",
+    "onCommand:extNavigator.clearSentiment",
+    "onCommand:extNavigator.openDetails",
+    "onCommand:extNavigator.addTag",
+    "onCommand:extNavigator.removeTag",
+    "onCommand:extNavigator.openMarketplace",
+    "onCommand:extNavigator.copyExtensionId",
+    "onCommand:extNavigator.copyRepoUrl"
   ],
   "contributes": {
     "viewsContainers": {
@@ -84,61 +94,61 @@
     "menus": {
       "view/title": [
         {
-          "when": "view == extNavigator.view",
+          "when": "view == extNavigator.view && !extnav.filterActive",
           "command": "extNavigator.setFilter",
           "group": "navigation@0"
         },
         {
           "when": "view == extNavigator.view && extnav.filterActive",
           "command": "extNavigator.clearFilter",
-          "group": "navigation@1"
+          "group": "navigation@0"
         }
       ],
       "view/item/context": [
         {
-          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.openDetails",
           "group": "navigation@0"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.like",
           "group": "inline@1"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.dislike",
           "group": "inline@2"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.clearSentiment",
           "group": "inline@3"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.addTag",
-          "group": "1_tags@1"
+          "group": "tags@1"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.removeTag",
-          "group": "1_tags@2"
+          "group": "tags@2"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.openMarketplace",
-          "group": "2_quick@1"
+          "group": "quick@1"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.copyExtensionId",
-          "group": "2_quick@2"
+          "group": "quick@2"
         },
         {
-          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
           "command": "extNavigator.copyRepoUrl",
-          "group": "2_quick@3"
+          "group": "quick@3"
         }
       ]
     },
@@ -164,9 +174,6 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.106.0",
-    "tslib": "^2.6.2",
-    "typescript": "^5.6.3",
-    "@vscode/test-electron": "^2.3.9"
-  },
-  "dependencies": {}
+    "typescript": "^5.6.3"
+  }
 }

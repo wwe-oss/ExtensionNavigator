@@ -39,7 +39,7 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord 
     const tagStr = r.tags && r.tags.length ? ` [${r.tags.slice(0,3).join(', ')}${r.tags.length>3?'…':''}]` : '';
     const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.None);
     item.description = `${mins}m${errs ? ' • errors:'+errs : ''} • v${r.version || '?'} ${senti}${tagStr}`.trim();
-    item.contextValue = isBuiltin(r.id) ? 'ext-builtIn' : 'ext-normal';
+    item.contextValue = isBuiltin(r.id) ? 'ext-builtIn' : 'ext-item';
     item.command = { command: 'extNavigator.openDetails', title: 'Open Profile', arguments: [r.id] };
     if (errs) item.tooltip = `${label}\nErrors: ${errs}`;
     return item;
