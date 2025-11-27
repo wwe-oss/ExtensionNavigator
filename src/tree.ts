@@ -61,7 +61,7 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord 
       return [
         { kind: 'group', id: 'errors', label: this.filterText ? `Has Errors — filtered: "${this.filterText}"` : 'Has Errors' },
         { kind: 'group', id: 'top', label: this.filterText ? `Top Used (7d) — filtered: "${this.filterText}"` : 'Top Used (7d)' },
-        { kind: 'group', id: 'recent', label: this.filterText ? `Recently Installed — filtered: "${this.filterText}"` : 'Recently Installed' },
+        { kind: 'group', id: 'recent', label: this.filterText ? `Recently Installed — filtered: "${this.filterText}"` : 'Recently Installed' }
       ];
     }
 

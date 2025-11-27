@@ -2,8 +2,8 @@
   "name": "extension-navigator",
   "publisher": "wayne",
   "displayName": "Extension Navigator & Notes",
-  "description": "Navigate VS Code extensions with profiles, notes/tags, daily usage (60s sampling), error sightings, and workspace recommendations.",
-  "version": "0.0.6",
+  "description": "Navigator with notes, filter, usage sampling, and self-check diagnostics.",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.106.0"
   },
@@ -21,11 +21,9 @@
     "onCommand:extNavigator.dislike",
     "onCommand:extNavigator.clearSentiment",
     "onCommand:extNavigator.openDetails",
-    "onCommand:extNavigator.addTag",
-    "onCommand:extNavigator.removeTag",
-    "onCommand:extNavigator.openMarketplace",
     "onCommand:extNavigator.copyExtensionId",
-    "onCommand:extNavigator.copyRepoUrl"
+    "onCommand:extNavigator.openMarketplace",
+    "onCommand:extNavigator.selfCheck"
   ],
   "contributes": {
     "viewsContainers": {
@@ -33,7 +31,7 @@
         {
           "id": "extNavigatorContainer",
           "title": "Extensions+",
-          "icon": "media/view-icon.svg"
+          "icon": "media/icon.png"
         }
       ]
     },
@@ -63,14 +61,6 @@
         "title": "Clear Sentiment"
       },
       {
-        "command": "extNavigator.addTag",
-        "title": "Add Tag..."
-      },
-      {
-        "command": "extNavigator.removeTag",
-        "title": "Remove Tag..."
-      },
-      {
         "command": "extNavigator.setFilter",
         "title": "Filter..."
       },
@@ -79,16 +69,16 @@
         "title": "Clear Filter"
       },
       {
-        "command": "extNavigator.openMarketplace",
-        "title": "Open in Marketplace"
-      },
-      {
         "command": "extNavigator.copyExtensionId",
         "title": "Copy Extension ID"
       },
       {
-        "command": "extNavigator.copyRepoUrl",
-        "title": "Copy Repo URL"
+        "command": "extNavigator.openMarketplace",
+        "title": "Open in Marketplace"
+      },
+      {
+        "command": "extNavigator.selfCheck",
+        "title": "Extensions+: Run Self-Check"
       }
     ],
     "menus": {
@@ -102,6 +92,11 @@
           "when": "view == extNavigator.view && extnav.filterActive",
           "command": "extNavigator.clearFilter",
           "group": "navigation@0"
+        },
+        {
+          "when": "view == extNavigator.view",
+          "command": "extNavigator.selfCheck",
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
@@ -127,41 +122,15 @@
         },
         {
           "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
-          "command": "extNavigator.addTag",
-          "group": "tags@1"
-        },
-        {
-          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
-          "command": "extNavigator.removeTag",
-          "group": "tags@2"
-        },
-        {
-          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
-          "command": "extNavigator.openMarketplace",
+          "command": "extNavigator.copyExtensionId",
           "group": "quick@1"
         },
         {
           "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
-          "command": "extNavigator.copyExtensionId",
+          "command": "extNavigator.openMarketplace",
           "group": "quick@2"
-        },
-        {
-          "when": "view == extNavigator.view && (viewItem == ext-item || viewItem == ext-builtIn)",
-          "command": "extNavigator.copyRepoUrl",
-          "group": "quick@3"
         }
       ]
-    },
-    "configuration": {
-      "title": "Extension Navigator",
-      "properties": {
-        "extensionNavigator.samplingPeriodMs": {
-          "type": "number",
-          "default": 60000,
-          "minimum": 5000,
-          "description": "Usage sampling period in milliseconds (default 60s)."
-        }
-      }
     }
   },
   "scripts": {
@@ -169,7 +138,7 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "test": "echo Tests disabled for now. && exit 0"
+    "test": "echo Tests disabled. && exit 0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

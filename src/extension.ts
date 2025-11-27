@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { MemDB, ExtRecord } from './memdb';
 import { startSampler } from './sampler';
 import { NavigatorTreeProvider } from './tree';
+import { runSelfCheck } from './diag';
 
 let stopSampler: (() => void) | undefined;
 const db = new MemDB();
@@ -37,7 +38,7 @@ export async function activate(ctx: vscode.ExtensionContext) {
   };
 
   const setFilter = async () => {
-    const text = await vscode.window.showInputBox({ prompt: 'Filter by name or tag', placeHolder: 'e.g. python, lint, favorite' });
+    const text = await vscode.window.showInputBox({ prompt: 'Filter by name', placeHolder: 'e.g. python' });
     if (text === undefined) return;
     tree.setFilter(text);
   };
@@ -62,39 +63,20 @@ export async function activate(ctx: vscode.ExtensionContext) {
       db.setSentiment(id, undefined); tree.refresh(); persist();
     }),
 
-    vscode.commands.registerCommand('extNavigator.addTag', async (arg?: any) => {
-      const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      const tag = await vscode.window.showInputBox({ prompt: `Add tag to ${id}`, placeHolder: 'e.g. favorite, slow, trial, teamA' });
-      if (!tag) return;
-      db.addTag(id, tag); tree.refresh(); persist();
-    }),
-    vscode.commands.registerCommand('extNavigator.removeTag', async (arg?: any) => {
-      const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      const rec = db.byId.get(id); if (!rec || !rec.tags.length) { vscode.window.showInformationMessage('No tags on this extension.'); return; }
-      const tag = await vscode.window.showQuickPick(rec.tags, { title: `Remove tag from ${id}` });
-      if (!tag) return;
-      db.removeTag(id, tag); tree.refresh(); persist();
-    }),
     vscode.commands.registerCommand('extNavigator.setFilter', setFilter),
     vscode.commands.registerCommand('extNavigator.clearFilter', clearFilter),
 
-    vscode.commands.registerCommand('extNavigator.openMarketplace', async (arg?: any) => {
-      const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      await vscode.commands.executeCommand('workbench.extensions.search', `ext:${id}`);
-    }),
     vscode.commands.registerCommand('extNavigator.copyExtensionId', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
       await vscode.env.clipboard.writeText(id);
       vscode.window.showInformationMessage(`Copied: ${id}`);
     }),
-    vscode.commands.registerCommand('extNavigator.copyRepoUrl', async (arg?: any) => {
+    vscode.commands.registerCommand('extNavigator.openMarketplace', async (arg?: any) => {
       const id = toExtId(arg) ?? await pickExtensionId(); if (!id) return;
-      const rec = db.byId.get(id);
-      const url = rec?.repoUrl;
-      if (!url) { vscode.window.showWarningMessage('No repository URL found in extension manifest.'); return; }
-      await vscode.env.clipboard.writeText(url);
-      vscode.window.showInformationMessage('Copied repository URL.');
-    })
+      await vscode.commands.executeCommand('workbench.extensions.search', `ext:${id}`);
+    }),
+
+    vscode.commands.registerCommand('extNavigator.selfCheck', async () => runSelfCheck(ctx))
   );
 
   stopSampler = startSampler(db, tree, samplingMs);
@@ -106,9 +88,6 @@ export async function activate(ctx: vscode.ExtensionContext) {
     for (const ext of vscode.extensions.all) db.ensureRecord(ext);
     tree.refresh(); persist();
   }));
-
-  ctx.subscriptions.push(vscode.workspace.onDidOpenTextDocument((doc: vscode.TextDocument) => db.bumpLanguage(doc.languageId)));
-  ctx.subscriptions.push(vscode.debug.onDidStartDebugSession(() => db.bumpDebug()));
 }
 
 export function deactivate() { if (stopSampler) stopSampler(); }
