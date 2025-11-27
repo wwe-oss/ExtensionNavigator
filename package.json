@@ -2,8 +2,8 @@
   "name": "extension-navigator",
   "publisher": "wayne",
   "displayName": "Extension Navigator & Notes",
-  "description": "Navigate VS Code extensions with profiles, notes/tags, daily usage (60s sampling), simple error sightings, and workspace recommendations.",
-  "version": "0.0.3",
+  "description": "Navigate VS Code extensions with profiles, notes/tags, daily usage (60s sampling), error sightings, and workspace recommendations.",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.106.0"
   },
@@ -15,7 +15,8 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:extNavigator.view",
-    "onCommand:extNavigator.openDetails"
+    "onCommand:extNavigator.openDetails",
+    "onCommand:extNavigator.discoverLogs"
   ],
   "contributes": {
     "viewsContainers": {
@@ -83,6 +84,10 @@
       {
         "command": "extNavigator.importCatalog",
         "title": "Import Catalog"
+      },
+      {
+        "command": "extNavigator.discoverLogs",
+        "title": "Discover Extension Host Logs"
       }
     ],
     "menus": {
@@ -126,16 +131,13 @@
           "when": "view == extNavigator.view && viewItem == extension",
           "command": "extNavigator.disableAsDisliked",
           "group": "2_mod@4"
-        },
+        }
+      ],
+      "view/title": [
         {
-          "when": "view == extNavigator.view && viewItem == extension",
-          "command": "extNavigator.addToWorkspaceRecommendations",
-          "group": "3_recs@1"
-        },
-        {
-          "when": "view == extNavigator.view && viewItem == extension",
-          "command": "extNavigator.removeFromWorkspaceRecommendations",
-          "group": "3_recs@2"
+          "when": "view == extNavigator.view",
+          "command": "extNavigator.discoverLogs",
+          "group": "navigation@99"
         }
       ]
     },

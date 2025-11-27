@@ -1,32 +1,17 @@
 import * as vscode from 'vscode';
-import * as os from 'os';
 import * as path from 'path';
+import * as os from 'os';
 
-/**
- * Path-corrected Extension Host log tailer.
- * If env.logUri is unavailable, we derive the logs directory based on OS and appName:
- *  - Windows: %APPDATA%/<ProductFolder>/logs
- *  - macOS:   ~/Library/Application Support/<ProductFolder>/logs
- *  - Linux:   $XDG_CONFIG_HOME/<ProductFolder>/logs  (or ~/.config/<ProductFolder>/logs)
- */
 export async function startLogTailer(
   db: { addError: (id: string, msg: string, maxRecent: number) => void },
-  _ctx: vscode.ExtensionContext,
+  ctx: vscode.ExtensionContext,
   maxRecent: number,
   onUpdate: () => void
 ): Promise<() => void> {
   try {
-    const root = resolveLogsRoot();
-    if (!root) {
-      console.warn('[ext-navigator] No logs root found.');
-      return () => {};
-    }
-
-    const logUri = await findExtHostLog(root);
-    if (!logUri) {
-      console.warn('[ext-navigator] No Extension Host log file found under', root.fsPath);
-      return () => {};
-    }
+    const custom = ctx.globalState.get<string>('extNavigator.customLogPath');
+    const logUri = custom ? vscode.Uri.file(custom) : await autoFindExtHostLog();
+    if (!logUri) { console.warn('[ext-navigator] No Extension Host log found'); return () => {}; }
 
     let offset = 0;
     const decoder = new TextDecoder();
@@ -34,7 +19,7 @@ export async function startLogTailer(
     const readChunk = async () => {
       try {
         const stat = await vscode.workspace.fs.stat(logUri);
-        if (stat.size < offset) offset = 0; // rotated
+        if (stat.size < offset) offset = 0;
         if (stat.size === offset) return;
         const bytes = await vscode.workspace.fs.readFile(logUri);
         const text = decoder.decode(bytes);
@@ -56,63 +41,46 @@ export async function startLogTailer(
   }
 }
 
-function resolveLogsRoot(): vscode.Uri | undefined {
+async function autoFindExtHostLog(): Promise<vscode.Uri | undefined> {
+  const roots: vscode.Uri[] = [];
   const anyEnv = vscode.env as any;
-  if (anyEnv?.logUri && anyEnv.logUri instanceof vscode.Uri) {
-    return anyEnv.logUri as vscode.Uri;
+  if (anyEnv?.logUri instanceof vscode.Uri) roots.push(anyEnv.logUri);
+  if ((vscode.env as any).logPath) roots.push(vscode.Uri.file((vscode.env as any).logPath as string));
+
+  const product = ((): string => {
+    const n = vscode.env.appName || 'Visual Studio Code';
+    if (/insiders/i.test(n)) return 'Code - Insiders';
+    if (/oss/i.test(n)) return 'code-oss';
+    if (/vscodium/i.test(n)) return 'VSCodium';
+    return 'Code';
+  })();
+  const home = os.homedir();
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || home, 'AppData', 'Roaming');
+    roots.push(vscode.Uri.file(path.join(appData, product, 'logs')));
+  } else if (process.platform === 'darwin') {
+    roots.push(vscode.Uri.file(path.join(home, 'Library', 'Application Support', product, 'logs')));
+  } else {
+    const xdg = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
+    roots.push(vscode.Uri.file(path.join(xdg, product, 'logs')));
   }
-  // Fallback: derive path
-  const productFolder = getProductFolder();
-  const platform = process.platform;
-  try {
-    if (platform === 'win32') {
-      const appData = process.env.APPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming');
-      return vscode.Uri.file(path.join(appData, productFolder, 'logs'));
-    } else if (platform === 'darwin') {
-      return vscode.Uri.file(path.join(os.homedir(), 'Library', 'Application Support', productFolder, 'logs'));
-    } else {
-      const xdg = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-      return vscode.Uri.file(path.join(xdg, productFolder, 'logs'));
-    }
-  } catch {
-    return undefined;
-  }
-}
 
-function getProductFolder(): string {
-  const name = vscode.env.appName || 'Visual Studio Code';
-  if (/insiders/i.test(name)) return 'Code - Insiders';
-  if (/oss/i.test(name)) return 'code-oss';
-  if (/vscodium/i.test(name)) return 'VSCodium';
-  return 'Code';
-}
-
-async function findExtHostLog(root: vscode.Uri): Promise<vscode.Uri | undefined> {
-  // Find the newest session folder and then an *exthost* file
-  const entries = await safeReadDir(root);
-  if (!entries) return undefined;
-  const dirs = entries.filter(([_, t]) => t === vscode.FileType.Directory).map(([n, _]) => n).sort();
-  const latestName = dirs.pop();
-  if (!latestName) return undefined;
-  const latest = vscode.Uri.joinPath(root, latestName);
-
-  const files = await safeReadDir(latest) || [];
-  const file = files.find(([n, t]) => t === vscode.FileType.File && /exthost/i.test(n));
-  if (file) return vscode.Uri.joinPath(latest, file[0]);
-
-  // One level deeper (some builds nest)
-  for (const [n, t] of files) {
-    if (t !== vscode.FileType.Directory) continue;
-    const sub = vscode.Uri.joinPath(latest, n);
-    const subFiles = await safeReadDir(sub) || [];
-    const hit = subFiles.find(([nn, tt]) => tt === vscode.FileType.File && /exthost/i.test(nn));
-    if (hit) return vscode.Uri.joinPath(sub, hit[0]);
+  for (const root of roots) {
+    try {
+      const sessions = await vscode.workspace.fs.readDirectory(root);
+      const dirs = sessions.filter(([_, t]) => t === vscode.FileType.Directory).map(([n,_]) => n).sort().reverse();
+      for (const d of dirs.slice(0, 3)) {
+        const folder = vscode.Uri.joinPath(root, d);
+        const files = await vscode.workspace.fs.readDirectory(folder);
+        for (const [name, type] of files) {
+          if (type === vscode.FileType.File && /exthost/i.test(name)) {
+            return vscode.Uri.joinPath(folder, name);
+          }
+        }
+      }
+    } catch {}
   }
   return undefined;
-}
-
-async function safeReadDir(uri: vscode.Uri) {
-  try { return await vscode.workspace.fs.readDirectory(uri); } catch { return undefined; }
 }
 
 function parseChunk(chunk: string, db: { addError: (id: string, msg: string, maxRecent: number) => void }, maxRecent: number) {
