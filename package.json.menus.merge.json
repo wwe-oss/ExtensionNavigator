@@ -1,0 +1,65 @@
+{
+  "contributes": {
+    "menus": {
+      "view/item/context": [
+        {
+          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "command": "extNavigator.openDetails",
+          "group": "navigation@0"
+        },
+        {
+          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "command": "extNavigator.like",
+          "group": "inline@1"
+        },
+        {
+          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "command": "extNavigator.dislike",
+          "group": "inline@2"
+        },
+        {
+          "when": "view == extNavigator.view && (viewItem == ext-normal || viewItem == ext-builtIn)",
+          "command": "extNavigator.clearSentiment",
+          "group": "inline@3"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "command": "extNavigator.uninstallAsLiked",
+          "group": "2_mod@1"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "command": "extNavigator.uninstallAsDisliked",
+          "group": "2_mod@2"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "command": "extNavigator.disableAsLiked",
+          "group": "2_mod@3"
+        },
+        {
+          "when": "view == extNavigator.view && viewItem == ext-normal",
+          "command": "extNavigator.disableAsDisliked",
+          "group": "2_mod@4"
+        }
+      ],
+      "view/title": [
+        {
+          "when": "view == extNavigator.view",
+          "command": "extNavigator.discoverLogs",
+          "group": "navigation@99"
+        },
+        {
+          "when": "view == extNavigator.view",
+          "command": "extNavigator.exportCatalog",
+          "group": "z_mod@1"
+        },
+        {
+          "when": "view == extNavigator.view",
+          "command": "extNavigator.importCatalog",
+          "group": "z_mod@2"
+        }
+      ]
+    }
+  }
+}

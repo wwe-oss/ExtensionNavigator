@@ -1,65 +1,133 @@
 import * as vscode from 'vscode';
 
-export type Sentiment = 'like'|'dislike'|undefined;
+export type Sentiment = 'like' | 'dislike' | undefined;
 
-export interface DayRollup { activeMinutes: number; activations: number }
-export interface ExtUsage {
-  totals: { activeMinutes: number; activations: number; daysActive: number };
-  byDay: Record<string, DayRollup>;
-  signals: { languages: Record<string, number>; debugSessions: number };
-  errors: { count: number; recent: { ts: number; msg: string }[] };
-}
 export interface ExtRecord {
-  id: string; version: string; displayName?: string;
-  firstSeen: number; lastSeen: number;
-  status: 'installed'|'disabled'|'uninstalled';
+  id: string;
+  displayName?: string;
+  version?: string;
+  repoUrl?: string | null;
+  notes?: string;
   sentiment?: Sentiment;
-  notes?: string; tags?: string[]; issues?: { id: string; title: string; status: 'open'|'closed' }[];
-  usage: ExtUsage;
-  _wasActive?: boolean; // transient
+  tags: string[];
+  firstSeen: number;
+  usage: {
+    totals: { activeMinutes: number; activations: number; daysActive: number };
+    byDay: Record<string, { activeMinutes: number; activations: number }>;
+    errors: { count: number; recent: Array<{ ts: number; msg: string }> };
+    signals: { languages: Record<string, number>; debugSessions: number };
+  };
 }
 
 export class MemDB {
   byId = new Map<string, ExtRecord>();
-  hasErrors = new Set<string>();
 
   ensureRecord(ext: vscode.Extension<any>) {
-    let rec = this.byId.get(ext.id);
+    const id = ext.id;
+    let rec = this.byId.get(id);
     const now = Date.now();
     if (!rec) {
       rec = {
-        id: ext.id,
-        version: (ext.packageJSON as any)?.version ?? '0.0.0',
-        displayName: (ext.packageJSON as any)?.displayName,
-        firstSeen: now, lastSeen: now,
-        status: 'installed',
-        usage: { totals: { activeMinutes: 0, activations: 0, daysActive: 0 }, byDay: {}, signals: { languages: {}, debugSessions: 0 }, errors: { count: 0, recent: [] } }
+        id,
+        displayName: ext.packageJSON?.displayName || ext.packageJSON?.name || id,
+        version: ext.packageJSON?.version,
+        repoUrl: (ext.packageJSON?.repository && (typeof ext.packageJSON.repository === 'string' ? ext.packageJSON.repository : ext.packageJSON.repository.url)) || null,
+        tags: [],
+        firstSeen: now,
+        usage: {
+          totals: { activeMinutes: 0, activations: 0, daysActive: 0 },
+          byDay: {},
+          errors: { count: 0, recent: [] },
+          signals: { languages: {}, debugSessions: 0 }
+        }
       };
-      this.byId.set(ext.id, rec);
+      this.byId.set(id, rec);
     } else {
-      rec.version = (ext.packageJSON as any)?.version ?? rec.version;
-      rec.lastSeen = now;
+      rec.displayName = ext.packageJSON?.displayName || ext.packageJSON?.name || rec.displayName;
+      rec.version = ext.packageJSON?.version || rec.version;
+      rec.repoUrl = (ext.packageJSON?.repository && (typeof ext.packageJSON.repository === 'string' ? ext.packageJSON.repository : ext.packageJSON.repository.url)) || rec.repoUrl || null;
     }
     return rec;
   }
 
-  setSentiment(id: string, s: Sentiment) { const r = this.byId.get(id); if (r) r.sentiment = s; }
-  setNote(id: string, note: string) { const r = this.byId.get(id); if (r) r.notes = note; }
+  setSentiment(id: string, s: Sentiment) {
+    const r = this.byId.get(id); if (!r) return;
+    r.sentiment = s;
+  }
+
+  setNote(id: string, note: string) {
+    const r = this.byId.get(id); if (!r) return;
+    r.notes = note;
+  }
+
+  addTag(id: string, tag: string) {
+    tag = tag.trim();
+    if (!tag) return;
+    const r = this.byId.get(id); if (!r) return;
+    if (!r.tags.includes(tag)) r.tags.push(tag);
+  }
+
+  removeTag(id: string, tag: string) {
+    const r = this.byId.get(id); if (!r) return;
+    r.tags = r.tags.filter(t => t.toLowerCase() != tag.toLowerCase());
+  }
+
+  bumpLanguage(langId: string) {
+    if (!langId) return;
+    for (const r of this.byId.values()) {
+      r.usage.signals.languages[langId] = (r.usage.signals.languages[langId] || 0) + 1;
+    }
+  }
+
+  bumpDebug() {
+    for (const r of this.byId.values()) r.usage.signals.debugSessions++;
+  }
 
   addError(id: string, msg: string, maxRecent: number) {
-    const r = this.byId.get(id) || { id, version: '0.0.0', firstSeen: Date.now(), lastSeen: Date.now(), status: 'installed', usage: { totals:{activeMinutes:0,activations:0,daysActive:0}, byDay:{}, signals:{languages:{},debugSessions:0}, errors:{count:0,recent:[]} } } as ExtRecord;
-    this.byId.set(id, r);
+    const r = this.byId.get(id); if (!r) return;
     r.usage.errors.count++;
-    r.usage.errors.recent.push({ ts: Date.now(), msg });
-    if (r.usage.errors.recent.length > maxRecent) r.usage.errors.recent.splice(0, r.usage.errors.recent.length - maxRecent);
-    this.hasErrors.add(id);
+    r.usage.errors.recent.unshift({ ts: Date.now(), msg });
+    if (r.usage.errors.recent.length > maxRecent) r.usage.errors.recent.length = maxRecent;
   }
 
-  bumpLanguage(id: string) {
-    for (const r of this.byId.values()) r.usage.signals.languages[id] = (r.usage.signals.languages[id]||0)+1;
+  tickActiveMinute() {
+    // naive: add 1 minute to all installed extensions
+    const key = new Date().toISOString().slice(0,10);
+    for (const r of this.byId.values()) {
+      const day = r.usage.byDay[key] || (r.usage.byDay[key] = { activeMinutes: 0, activations: 0 });
+      day.activeMinutes += 1;
+      r.usage.totals.activeMinutes += 1;
+      // daysActive heuristic
+      if (!r.usage.byDay[key] || day.activations === 0) r.usage.totals.daysActive = new Set(Object.keys(r.usage.byDay)).size;
+    }
   }
-  bumpDebug() { for (const r of this.byId.values()) r.usage.signals.debugSessions++; }
 
-  snapshot() { return { extensions: Array.from(this.byId.values()) }; }
-  loadSnapshot(s: any) { if (!s?.extensions) return; this.byId = new Map(s.extensions.map((r: ExtRecord)=>[r.id,r])); }
+  snapshot() {
+    return { version: 1, at: Date.now(), items: [...this.byId.values()] };
+  }
+
+  loadSnapshot(obj: any) {
+    if (!obj || !Array.isArray(obj.items)) return;
+    this.byId.clear();
+    for (const it of obj.items) {
+      // trust the shape, but coerce missing fields
+      const rec: ExtRecord = {
+        id: it.id,
+        displayName: it.displayName,
+        version: it.version,
+        repoUrl: it.repoUrl ?? null,
+        notes: it.notes,
+        sentiment: it.sentiment,
+        tags: Array.isArray(it.tags) ? it.tags.slice(0,50) : [],
+        firstSeen: it.firstSeen || Date.now(),
+        usage: {
+          totals: it.usage?.totals || { activeMinutes: 0, activations: 0, daysActive: 0 },
+          byDay: it.usage?.byDay || {},
+          errors: it.usage?.errors || { count: 0, recent: [] },
+          signals: it.usage?.signals || { languages: {}, debugSessions: 0 }
+        }
+      };
+      this.byId.set(rec.id, rec);
+    }
+  }
 }
