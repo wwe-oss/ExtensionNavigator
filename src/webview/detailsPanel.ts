@@ -36,8 +36,8 @@ export class DetailsPanel {
     if (!rec) return;
 
     const dayRows = Object.entries(rec.usage.byDay).sort((a,b)=>a[0].localeCompare(b[0])).map(([day, v])=>({ day, ...(v as any) }));
-    // top 5 languages
-    const langs = Object.entries(rec.usage.signals.languages || {}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({id,count}));
+    const langs = Object.entries(rec.usage.signals.languages || {}).sort((a,b)=>Number(b[1])-Number(a[1])).slice(0,5).map(([id,count])=>({id,count}));
+
     panel.webview.postMessage({
       type: 'state',
       data: {
@@ -131,31 +131,31 @@ export class DetailsPanel {
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    const $ = (id) => document.getElementById(id);
 
     window.addEventListener('message', (event) => {
       const msg = event.data;
       if (msg.type === 'state') {
         const d = msg.data;
-        $('title').textContent = d.displayName + ' — ' + d.id;
-        $('version').textContent = d.version;
-        $('sentiment').textContent = d.sentiment ?? '—';
-        $('mins').textContent = Math.round(d.totals.activeMinutes);
-        $('acts').textContent = d.totals.activations;
-        $('days').textContent = d.totals.daysActive;
-        $('errcount').textContent = d.errors.count;
-        $('note').value = d.note || '';
+        document.getElementById('title').textContent = d.displayName + ' — ' + d.id;
+        (document.getElementById('version')).textContent = d.version;
+        (document.getElementById('sentiment')).textContent = d.sentiment ?? '—';
+        (document.getElementById('mins')).textContent = Math.round(d.totals.activeMinutes);
+        (document.getElementById('acts')).textContent = d.totals.activations;
+        (document.getElementById('days')).textContent = d.totals.daysActive;
+        (document.getElementById('errcount')).textContent = d.errors.count;
+        (document.getElementById('note')).value = d.note || '';
 
-        const lwrap = $('langs'); lwrap.innerHTML = '';
+        const lwrap = document.getElementById('langs');
+        lwrap.innerHTML = '';
         for (const l of d.signals.languages || []) {
           const span = document.createElement('span');
           span.className = 'pill';
-          span.textContent = `${l.id} • ${l.count}`;
+          span.textContent = l.id + ' • ' + l.count;
           lwrap.appendChild(span);
         }
-        $('dbg').textContent = d.signals.debugSessions || 0;
+        (document.getElementById('dbg')).textContent = d.signals.debugSessions || 0;
 
-        const tbody = $('tbody');
+        const tbody = document.getElementById('tbody');
         tbody.innerHTML = '';
         for (const row of d.byDay) {
           const tr = document.createElement('tr');
@@ -163,7 +163,7 @@ export class DetailsPanel {
           tbody.appendChild(tr);
         }
 
-        const container = $('errors');
+        const container = document.getElementById('errors');
         container.innerHTML = '';
         for (const e of d.errors.recent || []) {
           const div = document.createElement('div');
@@ -175,8 +175,8 @@ export class DetailsPanel {
       }
     });
 
-    $('save').addEventListener('click', () => {
-      vscode.postMessage({ type: 'saveNote', note: $('note').value });
+    document.getElementById('save').addEventListener('click', () => {
+      vscode.postMessage({ type: 'saveNote', note: (document.getElementById('note')).value });
     });
   </script>
 </body>
