@@ -35,7 +35,10 @@ export class DetailsPanel {
     const rec = db.byId.get(extId);
     if (!rec) return;
 
-    const dayRows = Object.entries(rec.usage.byDay).sort((a,b)=>a[0].localeCompare(b[0])).map(([day, v])=>({ day, ...(v as any) }));
+    const dayRows = Object.entries(rec.usage.byDay)
+      .sort((a,b)=>a[0].localeCompare(b[0]))
+      .map(([day, v])=>({ day, ...(v as any) }));
+
     panel.webview.postMessage({
       type: 'state',
       data: {
@@ -124,16 +127,16 @@ export class DetailsPanel {
       const msg = event.data;
       if (msg.type === 'state') {
         const d = msg.data;
-        $('title').textContent = d.displayName + ' — ' + d.id;
-        $('version').textContent = d.version;
-        $('sentiment').textContent = d.sentiment ?? '—';
-        $('mins').textContent = Math.round(d.totals.activeMinutes);
-        $('acts').textContent = d.totals.activations;
-        $('days').textContent = d.totals.daysActive;
-        $('errcount').textContent = d.errors.count;
-        $('note').value = d.note || '';
+        document.getElementById('title').textContent = d.displayName + ' — ' + d.id;
+        document.getElementById('version').textContent = d.version;
+        document.getElementById('sentiment').textContent = d.sentiment ?? '—';
+        document.getElementById('mins').textContent = Math.round(d.totals.activeMinutes);
+        document.getElementById('acts').textContent = d.totals.activations;
+        document.getElementById('days').textContent = d.totals.daysActive;
+        document.getElementById('errcount').textContent = d.errors.count;
+        document.getElementById('note').value = d.note || '';
 
-        const tbody = $('tbody');
+        const tbody = document.getElementById('tbody');
         tbody.innerHTML = '';
         for (const row of d.byDay) {
           const tr = document.createElement('tr');
@@ -141,7 +144,7 @@ export class DetailsPanel {
           tbody.appendChild(tr);
         }
 
-        const container = $('errors');
+        const container = document.getElementById('errors');
         container.innerHTML = '';
         for (const e of d.errors.recent || []) {
           const div = document.createElement('div');
@@ -153,11 +156,11 @@ export class DetailsPanel {
       }
     });
 
-    $('save').addEventListener('click', () => {
-      vscode.postMessage({ type: 'saveNote', note: $('note').value });
+    document.getElementById('save').addEventListener('click', () => {
+      vscode.postMessage({ type: 'saveNote', note: document.getElementById('note').value });
     });
   </script>
 </body>
-</html>";
+</html>`;
   }
 }

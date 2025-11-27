@@ -6,8 +6,8 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord>
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
   refresh() { this._onDidChangeTreeData.fire(); }
-  private refreshTimeout?: NodeJS.Timeout;
-  refreshThrottled() { clearTimeout(this.refreshTimeout); this.refreshTimeout = setTimeout(()=>this.refresh(), 500); }
+  private refreshTimeout: ReturnType<typeof setTimeout> | undefined;
+  refreshThrottled() { if (this.refreshTimeout) clearTimeout(this.refreshTimeout); this.refreshTimeout = setTimeout(()=>this.refresh(), 500); }
 
   constructor(public db: MemDB, public ctx: vscode.ExtensionContext) {}
 
