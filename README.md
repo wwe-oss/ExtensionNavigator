@@ -1,16 +1,13 @@
 # Extension Navigator & Notes (Starter)
 
-Track installed/removed extensions, notes/tags/issues, daily usage (1-min sampling by default), simple error sightings, and workspace recommendations.
+- **Open Profile**: full details panel with notes + daily usage table.
+- **Like/Dislike**: quick sentiment, persists even after uninstall.
+- **Uninstall/Disable (Liked/Disliked)**: lifecycle with sentiment.
+- **Workspace Recs**: add/remove to `.vscode/extensions.json` for the current workspace.
+- **Usage**: 60s sampling, daily rollups, last-7-days sorting.
 
 ## Run
-
 ```bash
 npm i
-# F5 in VS Code to run the Extension Development Host
+# then press F5 in VS Code
 ```
-
-Open the **Extensions+ → Navigator** view. Try commands like:
-- Extension Navigator: Like / Dislike / Clear Sentiment
-- Extension Navigator: Uninstall as Liked / Disliked
-- Extension Navigator: Disable as Liked / Disliked
-- Extension Navigator: Add/Remove to Workspace Recommendations

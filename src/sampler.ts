@@ -19,7 +19,6 @@ export function startSampler(db: MemDB, tree: NavigatorTreeProvider, periodMs: n
       }
       rec.lastSeen = now;
     }
-    // recompute daysActive
     for (const r of db.byId.values()) r.usage.totals.daysActive = Object.values(r.usage.byDay).filter(x=>x.activeMinutes>0).length;
     tree.refreshThrottled();
   }, periodMs);

@@ -10,7 +10,7 @@ export class DetailsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       'extNavigator.details',
-      `Extension Details — ${extId}`,
+      `Extension Profile — ${extId}`,
       vscode.ViewColumn.Active,
       { enableScripts: true, retainContextWhenHidden: true }
     );
@@ -65,7 +65,7 @@ export class DetailsPanel {
   <meta charset="utf-8"/>
   <meta http-equiv="Content-Security-Policy" content="${csp}">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Extension Details</title>
+  <title>Extension Profile</title>
   <style>
     body { font-family: system-ui, sans-serif; padding: 16px; }
     h1 { font-size: 1.1rem; margin: 0 0 8px; }

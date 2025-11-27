@@ -47,7 +47,6 @@ export class MemDB {
   setNote(id: string, note: string) { const r = this.byId.get(id); if (r) r.notes = note; }
 
   bumpLanguage(id: string) {
-    // naive heuristic: bump counter on all records for the language touch
     for (const r of this.byId.values()) r.usage.signals.languages[id] = (r.usage.signals.languages[id]||0)+1;
   }
   bumpDebug() { for (const r of this.byId.values()) r.usage.signals.debugSessions++; }

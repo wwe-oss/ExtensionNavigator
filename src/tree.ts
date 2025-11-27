@@ -17,12 +17,11 @@ export class NavigatorTreeProvider implements vscode.TreeDataProvider<ExtRecord>
     const senti = el.sentiment === 'like' ? '👍' : el.sentiment === 'dislike' ? '👎' : '';
     item.description = `${mins}m • v${el.version} ${senti}`.trim();
     item.contextValue = 'extension';
-    item.command = { command: 'extNavigator.openDetails', title: 'Open Details', arguments: [el.id] };
+    item.command = { command: 'extNavigator.openDetails', title: 'Open Profile', arguments: [el.id] };
     return item;
   }
 
   async getChildren(): Promise<ExtRecord[]> {
-    // Sort by last 7 days active minutes desc
     const dayKeys = [...Array(7)].map((_,i)=>{const d=new Date(); d.setDate(d.getDate()-i); return d.toISOString().slice(0,10);});
     const scored = [...this.db.byId.values()].map(r=>({
       r, score: dayKeys.reduce((a,k)=>a+(r.usage.byDay[k]?.activeMinutes||0),0)
