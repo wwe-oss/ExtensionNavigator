@@ -1,0 +1,13 @@
+# Merge into package.json (devDependencies + scripts)
+{
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/glob": "^8.1.0",
+    "mocha": "^10.6.0",
+    "glob": "^8.1.0",
+    "@vscode/test-electron": "^2.3.9"
+  },
+  "scripts": {
+    "test": "node ./out/test/runTest.js"
+  }
+}
